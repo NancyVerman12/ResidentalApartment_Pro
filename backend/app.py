@@ -15,12 +15,24 @@ from database import db, init_db, User, Unit, Amenity, Booking, Lease
 app = Flask(__name__)
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'your-secret-key-change-in-production')
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
+
+database_url = os.getenv(
     'DATABASE_URL',
     'postgresql://apartment_user:apartment_pass@postgres:5432/apartment_db'
 )
+if database_url.startswith('postgres://'):
+    database_url = database_url.replace('postgres://', 'postgresql://', 1)
 
-CORS(app)
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {"pool_pre_ping": True}
+
+allowed_origins = os.getenv('CORS_ALLOWED_ORIGINS')
+if allowed_origins:
+    origins = [origin.strip() for origin in allowed_origins.split(',') if origin.strip()]
+    CORS(app, resources={r"/api/*": {"origins": origins}}, supports_credentials=True)
+else:
+    CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 jwt = JWTManager(app)
 db.init_app(app)
 
@@ -455,5 +467,7 @@ def get_tenants():
     return jsonify(tenants)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    debug_mode = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
+    port = int(os.getenv('PORT', '5000'))
+    app.run(host='0.0.0.0', port=port, debug=debug_mode)
 

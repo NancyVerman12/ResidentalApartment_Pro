@@ -4,6 +4,7 @@ Author: Nancy Verma
 Database schema and initialization for apartment management system
 """
 
+import os
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from werkzeug.security import generate_password_hash
@@ -74,19 +75,24 @@ class Lease(db.Model):
 def init_db():
     db.create_all()
     
+    admin_email = os.getenv('ADMIN_EMAIL', 'admin@apartment.com')
+    admin_password = os.getenv('ADMIN_PASSWORD', 'admin123')
+
     # Create default admin user
-    if not User.query.filter_by(email='admin@apartment.com').first():
+    if not User.query.filter_by(email=admin_email).first():
         admin = User(
             username='admin',
-            email='admin@apartment.com',
-            password_hash=generate_password_hash('admin123'),
+            email=admin_email,
+            password_hash=generate_password_hash(admin_password),
             role='admin'
         )
         db.session.add(admin)
         db.session.commit()
     
+    seed_sample_data = os.getenv('SEED_SAMPLE_DATA', 'true').lower() == 'true'
+
     # Create default amenities
-    if Amenity.query.count() == 0:
+    if seed_sample_data and Amenity.query.count() == 0:
         amenities = [
             Amenity(name='Gym', description='Fully equipped fitness center', icon='🏋️'),
             Amenity(name='Swimming Pool', description='Outdoor swimming pool', icon='🏊'),
@@ -100,7 +106,7 @@ def init_db():
         db.session.commit()
     
     # Create sample units
-    if Unit.query.count() == 0:
+    if seed_sample_data and Unit.query.count() == 0:
         units = [
             Unit(tower_name='Tower A', unit_number='A-101', bedrooms=2, bathrooms=2, area=1200, rent=25000, is_available=True),
             Unit(tower_name='Tower A', unit_number='A-102', bedrooms=3, bathrooms=2, area=1500, rent=30000, is_available=True),
